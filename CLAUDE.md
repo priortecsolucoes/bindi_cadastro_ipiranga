@@ -147,4 +147,6 @@ toda a execução. `write_value(row_index, column_name, value)`. Fecha no `EndMo
 - Não usar `logging` do Python — `print` direto conforme padrão Priortec.
 
 ## Deploy
-Ainda não configurado (sem Dockerfile/railway.json): seletores internos não validados.
+Railway via `Dockerfile` (python:3.11-slim-bookworm + Google Chrome, `CHROME_HEADLESS=1`) e `railway.json`
+(builder DOCKERFILE, cron `*/30 * * * *`, sem restart) - mesmo padrão do Bindi - Vibra. Variáveis do `.env` vão
+nas Variables do serviço no Railway (`.env` fica fora da imagem pelo `.dockerignore`).

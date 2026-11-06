@@ -1,0 +1,13 @@
+[
+  {
+    "base_retiro": "BASE PAULINIA",
+    "placa": "ABC1D23",
+    "motorista": "JOAO DA SILVA",
+    "horario": "08:00",
+    "data_carregamento": "03/10/2026",
+    "pedidos": [
+      {"numero": "123456", "compartimentos": {"1": "DIESEL S10", "2": "GASOLINA C"}},
+      {"numero": "123457", "compartimentos": {"3": "ETANOL"}}
+    ]
+  }
+]

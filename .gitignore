@@ -1,0 +1,19 @@
+# Credenciais - nunca versionar
+.env
+
+# Ambiente virtual Python
+venv/
+
+# Bytecode compilado
+__pycache__/
+*.pyc
+
+# Entrada e saída do bot - geradas/editadas a cada execução, não são código
+programacoes.json
+agendamentos_ipiranga.csv
+erro_*.png
+
+# Config local do Claude Code
+.claude/
+chrome_profile/
+ipiranga_cookies.json

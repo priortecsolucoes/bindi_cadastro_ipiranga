@@ -4,6 +4,7 @@ Pipeline FrameworkRE: INIT -> GET_DATA -> PROCESS -> END."""
 from Framework import EndModule, GetDataModule, InitModule, ProcessModule
 from Framework.RPAFrameworkException import RPAFrameworkException
 from Log.LogModule import LogModule
+from Utils.AgentMonitor import monitored_run
 
 # TESTE: enquanto o portal não tem viagem Ipiranga planejada. Com True, usa
 # SIMULATED_ITEMS no lugar do GET_DATA (sem trip_id: o portal não é consultado
@@ -30,7 +31,16 @@ SIMULATED_ITEMS = [
 ]
 
 
+AGENT_CODE = "ipiranga_cadastro"
+AGENT_NAME = "Ipiranga · agendamento"
+
+
 def run() -> None:
+    with monitored_run(AGENT_CODE, AGENT_NAME):
+        _run_pipeline()
+
+
+def _run_pipeline() -> None:
     log_module = None
     try:
         config = InitModule.initialize()

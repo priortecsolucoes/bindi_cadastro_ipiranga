@@ -53,7 +53,12 @@ A Base de Retiro não existe no portal: padrão `Base De Betim` (ER), override e
 Override para testes: `PROGRAMACOES_PATH` (JSON, formato em `programacoes.example.json`); com ele
 o portal não é consultado nem recebe resultado.
 
-Retorno: `POST /api/rpa/ipiranga/agendamentos` com `{ tripId, schedulingId, orders: [{ orderId,
+Horário (passo 7, `_select_schedule_time`): prefere a opção igual ao `loadTime` ou que começa nele;
+só se não houver, uma que apenas o contém (ex.: faixa "07:30 - 08:00"). O início da opção selecionada
+é o horário agendado de fato e vai ao portal em `scheduledTime` (gravado em
+`trip_loading.distributor_scheduled_time`, migração 034; o quadro de viagens mostra o agendado e o
+planejado quando diferem) e ao CSV ("Agendado às HH:MM (planejado HH:MM)").
+Retorno: `POST /api/rpa/ipiranga/agendamentos` com `{ tripId, schedulingId, scheduledTime?, orders: [{ orderId,
 scheduled, failed?, observation?, technicalDetail? }] }`. Mesmas regras do agente Vibra
 (`C:\Priortec\Bindi - Cadastro`): o portal grava o resultado **só na viagem** (`order_event.trip_id`,
 `lib/rpaTripRegistration.ts` no Bindi-PAINEL) e **não muda o status do pedido** - um pedido dividido

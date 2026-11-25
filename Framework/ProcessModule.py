@@ -99,6 +99,9 @@ def process_items(items: List[dict], config: BotConfig, log_module: LogModule) -
 
             observations = {**result["order_notes"], **result["skipped_orders"]}
             detail = " | ".join(f"Pedido {number}: {text}" for number, text in observations.items())
+            if result.get("scheduled_time") and result["scheduled_time"] != item["schedule_time"]:
+                time_note = f"Agendado às {result['scheduled_time']} (planejado {item['schedule_time']})"
+                detail = f"{time_note} | {detail}" if detail else time_note
             if item.get("trip_id"):
                 try:
                     _report_to_portal(config, item, result)
@@ -138,7 +141,8 @@ def _report_to_portal(config: BotConfig, item: dict, result: dict) -> None:
             order_results.append({"orderId": order["order_id"], "scheduled": False, "observation": observation})
 
     response = report_scheduling(
-        config.portal_api_url, config.portal_api_token, item["trip_id"], result["scheduling_id"], order_results
+        config.portal_api_url, config.portal_api_token, item["trip_id"], result["scheduling_id"], order_results,
+        result.get("scheduled_time"),
     )
     print(
         f"[OK] Resultado enviado ao Portal Bindi Log: {response.get('registered', 0)} pedido(s) registrado(s), "

@@ -52,15 +52,23 @@ def report_scheduling(
     trip_id: int,
     scheduling_id: Optional[str],
     order_results: List[dict],
+    scheduled_time: Optional[str] = None,
 ) -> dict:
     """POST /api/rpa/ipiranga/agendamentos - order_results é uma lista de
     {"orderId", "scheduled", "failed"?, "observation"?, "technicalDetail"?}. O
     portal grava o resultado só na viagem (o status do pedido não muda): agendado
     = cadastro da viagem com o ID do agendamento (selo REG); não agendado =
     observação em aberto na viagem; failed = erro em aberto na viagem (selo ERRO).
+    scheduled_time ("HH:MM") = horário que a Ipiranga agendou (pode diferir do planejado);
+    o portal mostra em "Carregamento na distribuidora".
     Levanta RuntimeError (erro do item, não da execução)."""
     url = f"{base_url.rstrip('/')}/api/rpa/ipiranga/agendamentos"
-    payload = {"tripId": trip_id, "schedulingId": scheduling_id, "orders": order_results}
+    payload = {
+        "tripId": trip_id,
+        "schedulingId": scheduling_id,
+        "scheduledTime": scheduled_time or None,
+        "orders": order_results,
+    }
     try:
         response = requests.post(url, headers=_headers(token), json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
     except requests.RequestException as exc:

@@ -61,6 +61,7 @@ PLATE_INPUT_XPATH = "//label[contains(., 'Placa')]/following::input[1]"
 PLATE_SEARCH_XPATH = "//label[contains(., 'Placa')]/following::*[contains(@class,'search') or contains(@class,'lupa') or contains(@title,'Pesquisar')][1]"
 DRIVER_SELECT_XPATH = "//label[contains(., 'Motorista')]/following::select[1]"
 SCHEDULE_TIME_SELECT_XPATH = "//label[contains(., 'Hor')]/following::select[1]"
+TIME_PATTERN = re.compile(r"\b([01]\d|2[0-3]):[0-5]\d\b")
 
 # Tabela "Pedidos Selecionados": rádio na linha do pedido.
 ORDER_RADIO_XPATH = "//tr[td[normalize-space(.)='{number}']]//input[@type='radio']"
@@ -331,15 +332,7 @@ def schedule_orders(driver: webdriver.Chrome, item: dict, timeout: int = DEFAULT
     )
 
     print(f"[INFO] 7. Horário {item['schedule_time']}")
-    _select(
-        driver,
-        SCHEDULE_TIME_SELECT_XPATH,
-        item["schedule_time"],
-        not_found_message=(
-            f"Horário {item['schedule_time']} não está disponível na Ipiranga em {departure_date}. "
-            f"Escolha outro horário de carregamento para a viagem."
-        ),
-    )
+    scheduled_time = _select_schedule_time(driver, item["schedule_time"], departure_date)
 
     print("[INFO] 8. Compartimentos por pedido")
     scheduled_orders: List[str] = []
@@ -363,11 +356,17 @@ def schedule_orders(driver: webdriver.Chrome, item: dict, timeout: int = DEFAULT
         scheduled_orders.append(number)
 
     if not scheduled_orders:
-        return {"scheduled_orders": [], "skipped_orders": skipped_orders, "order_notes": order_notes, "scheduling_id": None}
+        return {
+            "scheduled_orders": [], "skipped_orders": skipped_orders, "order_notes": order_notes,
+            "scheduling_id": None, "scheduled_time": scheduled_time,
+        }
 
     if item.get("dry_run"):
         print("[AVISO] Programação simulada (dry_run): parando antes de Confirmar - nada foi agendado na Ipiranga.")
-        return {"scheduled_orders": scheduled_orders, "skipped_orders": skipped_orders, "order_notes": order_notes, "scheduling_id": None}
+        return {
+            "scheduled_orders": scheduled_orders, "skipped_orders": skipped_orders, "order_notes": order_notes,
+            "scheduling_id": None, "scheduled_time": scheduled_time,
+        }
 
     print("[INFO] 9. Confirmar")
     _click(driver, By.CSS_SELECTOR, CONFIRM_BUTTON_SELECTOR)
@@ -385,7 +384,49 @@ def schedule_orders(driver: webdriver.Chrome, item: dict, timeout: int = DEFAULT
         "skipped_orders": skipped_orders,
         "order_notes": order_notes,
         "scheduling_id": scheduling_id,
+        "scheduled_time": scheduled_time,
     }
+
+
+def _select_schedule_time(driver: webdriver.Chrome, wanted_time: str, departure_date: str) -> str:
+    """Combo Horários: prefere a opção que é o horário planejado ou começa nele;
+    só usa uma que apenas contém o horário (ex.: faixa "07:30 - 08:00") se não houver
+    outra. Devolve o horário "HH:MM" que ficou selecionado (o início da opção) -
+    é o que a Ipiranga agendou e vai para o portal (scheduledTime)."""
+    try:
+        select = Select(
+            WebDriverWait(driver, DEFAULT_TIMEOUT).until(
+                EC.presence_of_element_located((By.XPATH, SCHEDULE_TIME_SELECT_XPATH))
+            )
+        )
+    except TimeoutException as exc:
+        raise RuntimeError(f"Combo Horários não apareceu em {DEFAULT_TIMEOUT}s. URL atual: {driver.current_url}") from exc
+
+    options = [o for o in select.options if TIME_PATTERN.search(o.text)]
+    option = (
+        next((o for o in options if o.text.strip() == wanted_time), None)
+        or next((o for o in options if o.text.strip().startswith(wanted_time)), None)
+        or next((o for o in options if wanted_time in o.text), None)
+    )
+    if option is None:
+        raise SchedulingError(
+            f"Horário {wanted_time} não está disponível na Ipiranga em {departure_date}. "
+            "Escolha outro horário de carregamento para a viagem.",
+            f"opções do combo: {[o.text.strip() for o in select.options]}",
+        )
+    option.click()
+    _wait_loading(driver)
+
+    selected_text = Select(driver.find_element(By.XPATH, SCHEDULE_TIME_SELECT_XPATH)).first_selected_option.text.strip()
+    match = TIME_PATTERN.search(selected_text)
+    if not match:
+        raise RuntimeError(f"Combo Horários ficou em '{selected_text}', sem horário reconhecível (esperado {wanted_time}).")
+    scheduled_time = match.group(0)
+    if scheduled_time != wanted_time:
+        print(f"[AVISO] Horário {wanted_time} agendado na Ipiranga como '{selected_text}' (início {scheduled_time}).")
+    else:
+        print(f"[OK] Horário selecionado: {selected_text}")
+    return scheduled_time
 
 
 def _handle_plate_search_result(driver: webdriver.Chrome, plate: str) -> None:

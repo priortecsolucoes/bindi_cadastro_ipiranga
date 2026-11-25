@@ -54,9 +54,11 @@ def report_scheduling(
     order_results: List[dict],
 ) -> dict:
     """POST /api/rpa/ipiranga/agendamentos - order_results é uma lista de
-    {"orderId", "scheduled", "observation"?}. Pedido agendado vira
-    'Registrado na distribuidora' no portal; não agendado ganha a observação
-    em aberto. Levanta RuntimeError (erro do item, não da execução)."""
+    {"orderId", "scheduled", "failed"?, "observation"?, "technicalDetail"?}. O
+    portal grava o resultado só na viagem (o status do pedido não muda): agendado
+    = cadastro da viagem com o ID do agendamento (selo REG); não agendado =
+    observação em aberto na viagem; failed = erro em aberto na viagem (selo ERRO).
+    Levanta RuntimeError (erro do item, não da execução)."""
     url = f"{base_url.rstrip('/')}/api/rpa/ipiranga/agendamentos"
     payload = {"tripId": trip_id, "schedulingId": scheduling_id, "orders": order_results}
     try:

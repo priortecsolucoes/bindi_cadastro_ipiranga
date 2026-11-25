@@ -54,14 +54,21 @@ Override para testes: `PROGRAMACOES_PATH` (JSON, formato em `programacoes.exampl
 o portal não é consultado nem recebe resultado.
 
 Retorno: `POST /api/rpa/ipiranga/agendamentos` com `{ tripId, schedulingId, orders: [{ orderId,
-scheduled, observation? }] }`. Agendado → `registered_at_distributor` + nota com o ID (agendado
-com ressalva 'Em Análise' → também `distributor_note` em aberto); não agendado (saldo
-insuficiente) → `distributor_note` em aberto, status inalterado.
+scheduled, failed?, observation?, technicalDetail? }] }`. Mesmas regras do agente Vibra
+(`C:\Priortec\Bindi - Cadastro`): o portal grava o resultado **só na viagem** (`order_event.trip_id`,
+`lib/rpaTripRegistration.ts` no Bindi-PAINEL) e **não muda o status do pedido** - um pedido dividido
+em várias viagens é agendado viagem a viagem. Agendado → nota de cadastro da viagem
+(`registered_at_distributor` + `distributor_reference` = ID do agendamento; selo REG no quadro de
+viagens; a viagem sai do `planejados`); agendado com ressalva 'Em Análise' → também observação em
+aberto na viagem; não agendado (saldo insuficiente) → observação em aberto na viagem, que volta no
+próximo `planejados`. Histórico antigo convertido pela migração 036 do portal.
 Saída local: `agendamentos_ipiranga.csv` (status `AGENDADO`, `CONFIRMADO_SEM_ID`, `NAO_PROGRAMADO`,
 `ERRO_RETORNO_PORTAL` ou `ERRO`) + `erro_agendamento_N.png`. Erro na programação → POST com
-`failed: true` e a mensagem tratada (`SchedulingError.user_message`, ou mensagem genérica de falha
-técnica): pedidos vão para `scheduling_error` ("Erro no agendamento") + `distributor_note` em aberto;
-a viagem só volta no `planejados` depois de alterada no portal (`trip.updated_at` posterior à nota de erro).
+`failed: true`, a mensagem tratada (`SchedulingError.user_message`, ou mensagem genérica de falha
+técnica) e `technicalDetail`: erro em aberto **na viagem** (selo ERRO + quadro com a mensagem,
+"Detalhes técnicos" e "Tentar de novo"); a viagem só volta no `planejados` depois de alterada e
+liberada de novo (`trip.updated_at` posterior ao erro) ou de "Tentar de novo". Viagem já agendada
+que é reaberta e liberada de novo **não** volta (a fila de edição do portal é só da Vibra).
 
 **Pendências:**
 - Só a tela de login foi inspecionada (`#codigoUsuario`, `#senha`). Os seletores das telas

@@ -73,10 +73,11 @@ def process_items(items: List[dict], config: BotConfig, log_module: LogModule) -
                 user_message = exc.user_message if isinstance(exc, SchedulingError) else TECHNICAL_ERROR_MESSAGE
                 print(f"[ERRO] Falha na programação da placa {item['plate']}: {user_message}")
                 print(f"[INFO]   Detalhe técnico: {exc} (screenshot: {screenshot_path})")
-                detail = f"{user_message} | Detalhe técnico: {exc} (screenshot: {screenshot_path})"
+                technical_detail = f"{exc} (screenshot: {screenshot_path})"
+                detail = f"{user_message} | Detalhe técnico: {technical_detail}"
                 if item.get("trip_id"):
                     try:
-                        _report_error_to_portal(config, item, user_message)
+                        _report_error_to_portal(config, item, user_message, technical_detail)
                     except Exception as report_exc:  # noqa: BLE001 - registra no CSV e segue
                         print(f"[ERRO] Falha ao informar o erro da placa {item['plate']} ao Portal Bindi Log: {report_exc}")
                         detail = f"{detail} | Retorno ao portal falhou: {report_exc}"
@@ -145,16 +146,23 @@ def _report_to_portal(config: BotConfig, item: dict, result: dict) -> None:
     )
 
 
-def _report_error_to_portal(config: BotConfig, item: dict, user_message: str) -> None:
-    """Pedidos da viagem vão para 'Erro no agendamento' no portal, com a mensagem
-    em aberto para o Analista; a viagem volta na próxima busca."""
+def _report_error_to_portal(config: BotConfig, item: dict, user_message: str, technical_detail: str) -> None:
+    """Erro em aberto na viagem (selo ERRO no quadro de viagens, com 'Detalhes
+    técnicos'); o status do pedido não muda. A viagem só volta no planejados
+    depois que o usuário alterar e liberar de novo ou clicar 'Tentar de novo'."""
     order_results = [
-        {"orderId": order["order_id"], "scheduled": False, "failed": True, "observation": user_message}
+        {
+            "orderId": order["order_id"],
+            "scheduled": False,
+            "failed": True,
+            "observation": user_message,
+            "technicalDetail": technical_detail[:1000],
+        }
         for order in item["orders"]
     ]
     response = report_scheduling(config.portal_api_url, config.portal_api_token, item["trip_id"], None, order_results)
     print(
-        f"[OK] Erro informado ao Portal Bindi Log: {response.get('failed', 0)} pedido(s) em 'Erro no agendamento', "
+        f"[OK] Erro informado ao Portal Bindi Log: erro na viagem {item['trip_id']} ({response.get('failed', 0)} pedido(s)), "
         f"{response.get('notes', 0)} observação(ões)."
     )
 
